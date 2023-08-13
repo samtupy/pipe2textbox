@@ -1,0 +1,6 @@
+*.obj
+*.exe
+*.res
+*.o
+*.pdb
+sign.bat
