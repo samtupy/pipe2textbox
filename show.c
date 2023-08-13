@@ -206,7 +206,7 @@ void find(HWND hwnd, int dir) {
 
 // we don't want the user to have to copy the text they're seeing to notepad just because they want to preserve it, that defeats some of the point of this thing!
 // Callback that writes data from a text field to a file.
-DWORD save_editstream_callback(DWORD_PTR cookie,BYTE* buffer, LONG bufsize, LONG* bytes_written) {
+DWORD CALLBACK save_editstream_callback(DWORD_PTR cookie,LPBYTE buffer, LONG bufsize, LONG* bytes_written) {
 	DWORD dw_bytes_written;
 	HANDLE* file=(HANDLE*)cookie;
 	if(WriteFile(*file, buffer, bufsize, &dw_bytes_written, NULL)) {
