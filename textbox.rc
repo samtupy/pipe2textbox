@@ -2,11 +2,12 @@
 #include <windows.h>
 #include "textbox.h"
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
-textbox DIALOG 0, 0, 145, 67
+textbox DIALOG 0, 0, 300, 250
 STYLE DS_CENTER|DS_MODALFRAME|DS_SHELLFONT|WS_CAPTION|WS_VISIBLE|WS_MAXIMIZE|WS_POPUP
 CAPTION "output"
 FONT 10, "Arial"
 {
 	CONTROL "", IDC_TEXT, MSFTEDIT_CLASS, ES_MULTILINE|ES_READONLY|ES_AUTOHSCROLL|ES_SAVESEL|ES_WANTRETURN|WS_VSCROLL|WS_TABSTOP, 45, 4, 200, 100
-	DEFPUSHBUTTON "Close", IDCANCEL, 115, 201, 50, 14 // I don't even wanna know how visually horendis this probably looks
+	PUSHBUTTON "Find... Ctrl+F", IDC_FIND, 1, 94, 40, 20
+	PUSHBUTTON "Save as... Ctrl+S", IDC_SAVE, 250, 94, 40, 20 // I don't even wanna know how visually horendis this probably looks
 }

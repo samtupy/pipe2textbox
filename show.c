@@ -20,8 +20,10 @@
 BOOL CALLBACK textbox_callback(HWND hwnd, UINT message, WPARAM wp, LPARAM lp);
 LRESULT CALLBACK edit_control_callback(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #ifdef TXT_NOBEEPS
-void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control);
+	void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control);
 #endif
+void find(HWND hwnd, int dir);
+void save(HWND hwnd);
 // Globals required for the find dialog.
 WNDPROC original_edit_control_callback = NULL; // We need to subclass the textbox since the main dialog isn't receiving WM_KEYDOWN for some reason.
 wchar_t text_to_search[256];
@@ -74,17 +76,17 @@ int main() {
 			character_size = 0;
 			for(i = 1; i <= 4; i ++) { // One of these 4 bytes will tell us the size of the character we're dealing with.
 				unsigned char c;
-c = output_tmp[console_bytes_read - i];
+				c = output_tmp[console_bytes_read - i];
 				if(c < 192) continue; // another continuation char.
 				for(character_size = 2; character_size <=4; character_size ++) {
 					if((c & (1 << (7 - character_size))) == 0) break;
 				}
-			if(character_size) break;
+				if(character_size) break;
 			}
 			if(character_size - i > 0) {
 				ReadFile(cin, output_tmp + console_bytes_read, character_size - i, &bytes_read_tmp, NULL);
-			console_bytes_read += bytes_read_tmp;
-		}
+				console_bytes_read += bytes_read_tmp;
+			}
 		} // fwiw, that UTF8 correction thoroughly sucked.
 		text_transcode_result = MultiByteToWideChar(text_codepage != -1? text_codepage : 1252, text_codepage != -1? MB_ERR_INVALID_CHARS : 0, output_tmp, console_bytes_read, output + cursor, console_bytes_read); // Codepage can end up being unquestioningly windows1252 if transcoding attempts below fail, but we don't want to re-check encodings every text block.
 		if(!text_transcode_result) {
@@ -152,6 +154,10 @@ BOOL CALLBACK textbox_callback(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) {
 		event = HIWORD(wp);
 		if(control == IDCANCEL && event == BN_CLICKED)
 			DestroyWindow(hwnd);
+		else if(control == IDC_FIND && event == BN_CLICKED)
+			find(GetDlgItem(hwnd, IDC_TEXT), 0);
+		else if(control == IDC_SAVE && event == BN_CLICKED)
+			save(GetDlgItem(hwnd, IDC_TEXT));
 		return TRUE;
 	}
 	case WM_DESTROY: {
@@ -199,6 +205,7 @@ void find(HWND hwnd, int dir) {
 		SendMessage(hwnd, EM_FINDTEXTEX, (dir > 0? FR_DOWN : 0) | (find_dlg_flags & FR_MATCHCASE? FR_MATCHCASE : 0) | (find_dlg_flags & FR_WHOLEWORD ? FR_WHOLEWORD : 0), (LPARAM)&ft);
 		if(ft.chrgText.cpMin >= 0) {
 			SendMessage(hwnd, EM_EXSETSEL, 0, (LPARAM)&ft.chrgText);
+			SetFocus(hwnd); // Encase find dialog was activated through button instead of shortcut.
 			SendMessage(find_dlg, WM_CLOSE, 0, 0);
 		} else MessageBox((find_dlg? find_dlg : hwnd), L"nothing found for the given search", L"error", MB_ICONERROR);
 	}

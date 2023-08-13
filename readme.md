@@ -11,9 +11,9 @@ While this little program I've made by no means improves NVDA's scrolling functi
 ## Usage
 It really couldn't be more simple, just drop show.exe somewhere on your path (anywhere from c:\windows to c:\users\%username% so long as it's part of the path environment variable), then in the command line, you can test by running "dir c:\windows\system32|show" and see how you can instantly review every bit of that massive directory listing where as before you could only view the last 30 lines of it without extra hastle! Of course you can pipe anything to show.exe that you could pipe to the clip command. Easily reviewing git logs in a seekable manner is another great use for this, for example.
 
-The resulting dialog is very simple, containing only a read only edit box with command output and a close button. Though there is no menu bar or anything to make this visible somewhere, you can indeed press ctrl+f or f3 to open a standard find dialog. As with most applications, f3 and shift+f3 remember the last search term so that you can jump between occurances of text easily. The finding here doesn't wrap around yet, I'll likely get around to that soon.
+The resulting dialog is very simple, containing a read only edit box with command output, a find button, and a save as button. You can also press ctrl+f or f3 in the text field to open the standard find dialog. As with most applications, f3 and shift+f3 remember the last search term so that you can jump between occurances of text easily. The finding here doesn't wrap around yet, I'll likely get around to that soon. The save as feature can also be accessed by pressing control+s in the text field. The aplication always saves files encoded in UTF8.
 
-The only other feature is that you can press ctrl+s to save the output to a UTF8 encoded text file should you desire after reviewing it, because the entire point of this program is to hopefully make notepad NOT be a part of just basically using your terminal!
+You can exit the application by pressing either escape or alt+f4. You can also press ctrl+c in the terminal window you launched the application from by piping another process to it.
 
 It's not any more complicated than that!
 
