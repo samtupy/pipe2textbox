@@ -11,17 +11,13 @@
 #include <windows.h>
 #include <richedit.h>
 #include <strsafe.h>
-#ifdef TXT_NOBEEPS
 #include <textserv.h>
-#endif
 #include "textbox.h"
 
 // forward declarations
 BOOL CALLBACK textbox_callback(HWND hwnd, UINT message, WPARAM wp, LPARAM lp);
 LRESULT CALLBACK edit_control_callback(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-#ifdef TXT_NOBEEPS
-	void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control);
-#endif
+void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control);
 void find(HWND hwnd, int dir);
 void save(HWND hwnd);
 // Globals required for the find dialog.
@@ -122,9 +118,7 @@ int main() {
 		return 1;
 	}
 	output_box = GetDlgItem(dlg, IDC_TEXT);
-	#ifdef TXT_NOBEEPS
-		disable_richedit_beeps(richedit_module, output_box);
-	#endif
+	disable_richedit_beeps(richedit_module, output_box);
 	SendMessage(output_box, EM_SETLIMITTEXT, 0, 0);
 	SetWindowText(output_box, output_adjusted);
 	SendMessage(output_box, EM_SETSEL, 0, 0);
@@ -168,21 +162,19 @@ BOOL CALLBACK textbox_callback(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) {
 	return FALSE;
 }
 
-#ifdef TXT_NOBEEPS
-	// This function makes richedit controls stop making a sound if you try to scroll past their borders, warning is in c++! Thanks to https://stackoverflow.com/questions/55884687/how-to-eliminate-the-messagebeep-from-the-richedit-control
-	void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control) {
-		IUnknown* unknown;
-		ITextServices* ts;
-		IID* ITextservicesId = (IID*)GetProcAddress(richedit_module, "IID_ITextServices");
-		if(!ITextservicesId) return;
-		if(!SendMessage(richedit_control, EM_GETOLEINTERFACE, 0, (LPARAM)&unknown)) return;
-		HRESULT hr = unknown->QueryInterface(*ITextservicesId, (void**)&ts);
-		unknown->Release();
-		if(hr) return;
-		ts->OnTxPropertyBitsChange(TXTBIT_ALLOWBEEP, 0);
-		ts->Release();
-	}
-#endif
+// This function makes richedit controls stop making a sound if you try to scroll past their borders. Thanks to https://stackoverflow.com/questions/55884687/how-to-eliminate-the-messagebeep-from-the-richedit-control for the original C++ code.
+void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control) {
+	IUnknown* unknown = NULL;
+	ITextServices* ts = NULL;
+	IID* ITextservicesId = (IID*)GetProcAddress(richedit_module, "IID_ITextServices");
+	if (!ITextservicesId) return;
+	if (!SendMessage(richedit_control, EM_GETOLEINTERFACE, 0, (LPARAM)&unknown) || !unknown) return;
+	HRESULT hr = unknown->QueryInterface(*ITextservicesId, (void**)&ts);
+	unknown->Release();
+	if (FAILED(hr) || !ts) return;
+	ts->OnTxPropertyBitsChange(TXTBIT_ALLOWBEEP, 0);
+	ts->Release();
+}
 
 // This implements the find dialog.
 void find(HWND hwnd, int dir) {
