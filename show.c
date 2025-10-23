@@ -11,17 +11,42 @@
 #include <windows.h>
 #include <richedit.h>
 #include <strsafe.h>
-#ifdef TXT_NOBEEPS
-#include <textserv.h>
-#endif
 #include "textbox.h"
+
+#define TXTBIT_ALLOWBEEP 0x00000800
+
+typedef struct ITextServicesVtbl {
+	HRESULT (STDMETHODCALLTYPE* QueryInterface)(void* This, REFIID riid, void** ppvObject);
+	ULONG (STDMETHODCALLTYPE* AddRef)(void* This);
+	ULONG (STDMETHODCALLTYPE* Release)(void* This);
+	HRESULT (STDMETHODCALLTYPE* TxSendMessage)(void* This, UINT msg, WPARAM wparam, LPARAM lparam, LRESULT* plresult);
+	HRESULT (STDMETHODCALLTYPE* TxDraw)(void* This, DWORD dwDrawAspect, LONG lindex, void* pvAspect, DVTARGETDEVICE* ptd, HDC hdcDraw, HDC hicTargetDev, LPCRECTL lprcBounds, LPCRECTL lprcWBounds, LPRECT lprcUpdate, BOOL (CALLBACK* pfnContinue)(DWORD), DWORD dwContinue, LONG lViewId);
+	HRESULT (STDMETHODCALLTYPE* TxGetHScroll)(void* This, LONG* plMin, LONG* plMax, LONG* plPos, LONG* plPage, BOOL* pfEnabled);
+	HRESULT (STDMETHODCALLTYPE* TxGetVScroll)(void* This, LONG* plMin, LONG* plMax, LONG* plPos, LONG* plPage, BOOL* pfEnabled);
+	HRESULT (STDMETHODCALLTYPE* OnTxSetCursor)(void* This, DWORD dwDrawAspect, LONG lindex, void* pvAspect, DVTARGETDEVICE* ptd, HDC hdcDraw, HDC hicTargetDev, LPCRECT lprcClient, INT x, INT y);
+	HRESULT (STDMETHODCALLTYPE* TxQueryHitPoint)(void* This, DWORD dwDrawAspect, LONG lindex, void* pvAspect, DVTARGETDEVICE* ptd, HDC hdcDraw, HDC hicTargetDev, LPCRECT lprcClient, INT x, INT y, DWORD* pHitResult);
+	HRESULT (STDMETHODCALLTYPE* OnTxInPlaceActivate)(void* This, LPCRECT prcClient);
+	HRESULT (STDMETHODCALLTYPE* OnTxInPlaceDeactivate)(void* This);
+	HRESULT (STDMETHODCALLTYPE* OnTxUIActivate)(void* This);
+	HRESULT (STDMETHODCALLTYPE* OnTxUIDeactivate)(void* This);
+	HRESULT (STDMETHODCALLTYPE* TxGetText)(void* This, BSTR* pbstrText);
+	HRESULT (STDMETHODCALLTYPE* TxSetText)(void* This, LPCWSTR pszText);
+	HRESULT (STDMETHODCALLTYPE* TxGetCurTargetX)(void* This, LONG* px);
+	HRESULT (STDMETHODCALLTYPE* TxGetBaseLinePos)(void* This, LONG* py);
+	HRESULT (STDMETHODCALLTYPE* TxGetNaturalSize)(void* This, DWORD dwAspect, HDC hdcDraw, HDC hicTargetDev, DVTARGETDEVICE* ptd, DWORD dwMode, const SIZEL* psizelExtent, LONG* pwidth, LONG* pheight);
+	HRESULT (STDMETHODCALLTYPE* TxGetDropTarget)(void* This, IDropTarget** ppDropTarget);
+	HRESULT (STDMETHODCALLTYPE* OnTxPropertyBitsChange)(void* This, DWORD dwMask, DWORD dwBits);
+	HRESULT (STDMETHODCALLTYPE* TxGetCachedSize)(void* This, DWORD* pdwWidth, DWORD* pdwHeight);
+} ITextServicesVtbl;
+
+typedef struct ITextServices {
+	ITextServicesVtbl* lpVtbl;
+} ITextServices;
 
 // forward declarations
 BOOL CALLBACK textbox_callback(HWND hwnd, UINT message, WPARAM wp, LPARAM lp);
 LRESULT CALLBACK edit_control_callback(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-#ifdef TXT_NOBEEPS
-	void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control);
-#endif
+void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control);
 void find(HWND hwnd, int dir);
 void save(HWND hwnd);
 // Globals required for the find dialog.
@@ -32,7 +57,6 @@ DWORD find_dlg_flags = 0; // If not global, f3 and shift+f3 won't work correctly
 UINT M_FINDMSGSTRING;
 
 int main() {
-	// This was originally c code and may be again if I get borde enough to convert the *1* COM call I need to make into pure c.
 	HANDLE cin, cout, process_heap;
 	HWND dlg, output_box;
 	HMODULE richedit_module;
@@ -122,9 +146,7 @@ int main() {
 		return 1;
 	}
 	output_box = GetDlgItem(dlg, IDC_TEXT);
-	#ifdef TXT_NOBEEPS
-		disable_richedit_beeps(richedit_module, output_box);
-	#endif
+	disable_richedit_beeps(richedit_module, output_box);
 	SendMessage(output_box, EM_SETLIMITTEXT, 0, 0);
 	SetWindowText(output_box, output_adjusted);
 	SendMessage(output_box, EM_SETSEL, 0, 0);
@@ -168,21 +190,19 @@ BOOL CALLBACK textbox_callback(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) {
 	return FALSE;
 }
 
-#ifdef TXT_NOBEEPS
-	// This function makes richedit controls stop making a sound if you try to scroll past their borders, warning is in c++! Thanks to https://stackoverflow.com/questions/55884687/how-to-eliminate-the-messagebeep-from-the-richedit-control
-	void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control) {
-		IUnknown* unknown;
-		ITextServices* ts;
-		IID* ITextservicesId = (IID*)GetProcAddress(richedit_module, "IID_ITextServices");
-		if(!ITextservicesId) return;
-		if(!SendMessage(richedit_control, EM_GETOLEINTERFACE, 0, (LPARAM)&unknown)) return;
-		HRESULT hr = unknown->QueryInterface(*ITextservicesId, (void**)&ts);
-		unknown->Release();
-		if(hr) return;
-		ts->OnTxPropertyBitsChange(TXTBIT_ALLOWBEEP, 0);
-		ts->Release();
-	}
-#endif
+// This function makes richedit controls stop making a sound if you try to scroll past their borders. Thanks to https://stackoverflow.com/questions/55884687/how-to-eliminate-the-messagebeep-from-the-richedit-control for the original C++ code.
+void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control) {
+	IUnknown* unknown = NULL;
+	ITextServices* ts = NULL;
+	IID* ITextservicesId = (IID*)GetProcAddress(richedit_module, "IID_ITextServices");
+	if (!ITextservicesId) return;
+	if (!SendMessage(richedit_control, EM_GETOLEINTERFACE, 0, (LPARAM)&unknown) || !unknown) return;
+	HRESULT hr = unknown->lpVtbl->QueryInterface(unknown, ITextservicesId, (void**)&ts);
+	unknown->lpVtbl->Release(unknown);
+	if (FAILED(hr) || !ts) return;
+	ts->lpVtbl->OnTxPropertyBitsChange(ts, TXTBIT_ALLOWBEEP, 0);
+	ts->lpVtbl->Release(ts);
+}
 
 // This implements the find dialog.
 void find(HWND hwnd, int dir) {
