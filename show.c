@@ -72,7 +72,7 @@ int main() {
 		if(cout != INVALID_HANDLE_VALUE)
 			WriteFile(cout, message, lstrlenA(message), NULL, NULL);
 		return 0;
-	} else if(console_type == FILE_TYPE_PIPE) text_codepage = GetConsoleOutputCP();
+	} else if(console_type == FILE_TYPE_PIPE) text_codepage = CP_UTF8;
 	else text_codepage = 0;
 	// Allocate a buffer to store characters from stdin
 	allocated = 4096; cursor = 0;
@@ -112,10 +112,10 @@ int main() {
 				console_bytes_read += bytes_read_tmp;
 			}
 		} // fwiw, that UTF8 correction thoroughly sucked.
-		text_transcode_result = MultiByteToWideChar(text_codepage != -1? text_codepage : 1252, text_codepage != -1? MB_ERR_INVALID_CHARS : 0, output_tmp, console_bytes_read, output + cursor, console_bytes_read); // Codepage can end up being unquestioningly windows1252 if transcoding attempts below fail, but we don't want to re-check encodings every text block.
+		text_transcode_result = MultiByteToWideChar(text_codepage != -1? text_codepage : 1252, text_codepage == CP_UTF8 ? 0 : (text_codepage != -1? MB_ERR_INVALID_CHARS : 0), output_tmp, console_bytes_read, output + cursor, console_bytes_read); // Codepage can end up being unquestioningly windows1252 if transcoding attempts below fail, but we don't want to re-check encodings every text block.
 		if(!text_transcode_result) {
 			text_codepage = CP_ACP;
-			text_transcode_result = MultiByteToWideChar(text_codepage, MB_ERR_INVALID_CHARS, output_tmp, console_bytes_read, output + cursor, console_bytes_read);
+			text_transcode_result = MultiByteToWideChar(text_codepage, 0, output_tmp, console_bytes_read, output + cursor, console_bytes_read);
 		} if(!text_transcode_result) { // We are truly desperate...
 			text_codepage = -1; // Gotta choose something... in this case windows-1252 as seen above and below.
 			text_transcode_result = MultiByteToWideChar(1252, 0, output_tmp, console_bytes_read, output + cursor, console_bytes_read);
