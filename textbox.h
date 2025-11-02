@@ -6,3 +6,4 @@
 #define IDL_TEXT 1002
 #define IDC_FIND 1003
 #define IDC_SAVE 1004
+#define IDC_STATUS 1005

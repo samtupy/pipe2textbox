@@ -11,6 +11,7 @@
 #include <windows.h>
 #include <richedit.h>
 #include <strsafe.h>
+#include <commctrl.h>
 #include "textbox.h"
 
 #define TXTBIT_ALLOWBEEP 0x00000800
@@ -49,6 +50,8 @@ LRESULT CALLBACK edit_control_callback(HWND hwnd, UINT msg, WPARAM wParam, LPARA
 void disable_richedit_beeps(HMODULE richedit_module, HWND richedit_control);
 void find(HWND hwnd, int dir);
 void save(HWND hwnd);
+void update_status(HWND dlg);
+HWND g_status = NULL;
 // Globals required for the find dialog.
 WNDPROC original_edit_control_callback = NULL; // We need to subclass the textbox since the main dialog isn't receiving WM_KEYDOWN for some reason.
 wchar_t text_to_search[256];
@@ -140,6 +143,10 @@ int main() {
 		HeapFree(process_heap, 0, output);
 		return 1;
 	}
+	INITCOMMONCONTROLSEX icc;
+	icc.dwSize = sizeof(icc);
+	icc.dwICC = ICC_BAR_CLASSES;
+	InitCommonControlsEx(&icc);
 	dlg = CreateDialog(NULL, MAKEINTRESOURCE(textbox), 0, (DLGPROC)textbox_callback);
 	if(!dlg) {
 		HeapFree(process_heap, 0, output);
@@ -150,7 +157,10 @@ int main() {
 	SendMessage(output_box, EM_SETLIMITTEXT, 0, 0);
 	SetWindowText(output_box, output_adjusted);
 	SendMessage(output_box, EM_SETSEL, 0, 0);
+	SendMessage(output_box, EM_SETEVENTMASK, 0, (LPARAM)(SendMessage(output_box, EM_GETEVENTMASK, 0, 0) | ENM_SELCHANGE));
 	original_edit_control_callback = (WNDPROC)SetWindowLongPtr(output_box, GWLP_WNDPROC, (LONG_PTR)edit_control_callback);
+	g_status = CreateStatusWindowW(WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP, L"", dlg, IDC_STATUS);
+	update_status(dlg);
 	HeapFree(process_heap, 0, output);
 	// A couple tiny things for the find text dialog.
 	RtlSecureZeroMemory(&text_to_search, sizeof(text_to_search));
@@ -171,6 +181,14 @@ int main() {
 BOOL CALLBACK textbox_callback(HWND hwnd, UINT message, WPARAM wp, LPARAM lp) {
 	int control, event;
 	switch(message) {
+	case WM_NOTIFY: {
+		LPNMHDR nm = (LPNMHDR)lp;
+		if(nm && nm->idFrom == IDC_TEXT && nm->code == EN_SELCHANGE) {
+			update_status(hwnd);
+			return TRUE;
+		}
+		break;
+	}
 	case WM_COMMAND: {
 		control = LOWORD(wp);
 		event = HIWORD(wp);
@@ -291,4 +309,32 @@ LRESULT CALLBACK edit_control_callback(HWND hwnd, UINT msg, WPARAM wParam, LPARA
 		return TRUE;
 	}
 	return CallWindowProc(original_edit_control_callback, hwnd, msg, wParam, lParam);
+}
+
+void update_status(HWND dlg) {
+	HWND edit = GetDlgItem(dlg, IDC_TEXT);
+	CHARRANGE cr;
+	GETTEXTLENGTHEX gtl;
+	LONG total_chars;
+	long caret_pos;
+	int line_display;
+	int percent;
+	wchar_t buf[128];
+	RtlSecureZeroMemory(&cr, sizeof(cr));
+	SendMessage(edit, EM_EXGETSEL, 0, (LPARAM)&cr);
+	caret_pos = cr.cpMin;
+	RtlSecureZeroMemory(&gtl, sizeof(gtl));
+	gtl.flags = GTL_DEFAULT;
+	gtl.codepage = 1200; // Unicode
+	total_chars = (LONG)SendMessage(edit, EM_GETTEXTLENGTHEX, (WPARAM)&gtl, 0);
+	if (total_chars > 0 && caret_pos > 0) {
+		percent = (int)(((__int64)caret_pos * 100) / total_chars);
+	} else {
+		percent = 0;
+	}
+	line_display = (int)SendMessage(edit, EM_LINEFROMCHAR, (WPARAM)caret_pos, 0) + 1;
+	wsprintfW(buf, L"line %d, character %ld, %d%%", line_display, caret_pos, percent);
+	if(g_status) {
+		SendMessage(g_status, SB_SETTEXTW, 0, (LPARAM)buf);
+	}
 }
