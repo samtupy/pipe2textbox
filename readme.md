@@ -28,7 +28,7 @@ CMake is used as the build system for this program, targeting MSVC 2022. It's po
 After cloning the repository, simply running:
 ```
 mkdir build && cd build
-cmake .. && cmake --build .
+cmake .. && cmake --build . --config Release
 ```
 
 will give you a fully functional and tiny show.exe in the build directory.
