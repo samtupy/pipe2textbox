@@ -10,5 +10,5 @@ add_compile_options(/GS- /GF /Os /O1 /DNDEBUG /TC)
 
 enable_language(RC)
 set_source_files_properties(textbox.rc PROPERTIES LANGUAGE RC)
-add_executable(show show.c textbox.rc)
+add_executable(show WIN32 show.c textbox.rc)
 target_link_libraries(show advapi32 comdlg32 comctl32 kernel32 user32)
