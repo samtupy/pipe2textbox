@@ -1,6 +1,2 @@
-*.obj
-*.exe
-*.res
-*.o
-*.pdb
+build/
 sign.bat
